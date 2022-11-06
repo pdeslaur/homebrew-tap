@@ -1,23 +1,22 @@
-class ProtobufAT219 < Formula
+class Protobuf < Formula
   desc "Protocol buffers (Google's data interchange format)"
   homepage "https://github.com/protocolbuffers/protobuf/"
+  url "https://github.com/protocolbuffers/protobuf/releases/download/v21.5/protobuf-all-21.5.tar.gz"
+  sha256 "7ba0cb2ecfd9e5d44a6fa9ce05f254b7e5cd70ec89fafba0b07448f3e258310c"
   license "BSD-3-Clause"
-  revision 1
-
-  stable do
-    url "https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protobuf-all-21.9.tar.gz"
-    sha256 "c00f05e19e89b04ea72e92a3c204eedda91f871cd29b0bbe5188550d783c73c7"
-
-    # Fix build with Python 3.11. Remove in the next release.
-    patch do
-      url "https://github.com/protocolbuffers/protobuf/commit/da973aff2adab60a9e516d3202c111dbdde1a50f.patch?full_index=1"
-      sha256 "911925e427a396fa5e54354db8324c0178f5c602b3f819f7d471bb569cc34f53"
-    end
-  end
 
   livecheck do
     url :stable
     strategy :github_latest
+  end
+
+  bottle do
+    sha256 cellar: :any,                 arm64_monterey: "65db16092c200e43b2022ac85e595e01d1f63231075fb45cf1575a9527dacb28"
+    sha256 cellar: :any,                 arm64_big_sur:  "27ab263b5f859f05f799d367fe2c27dbc27af9b8a0bb8fa0634d380ea055e09f"
+    sha256 cellar: :any,                 monterey:       "0cc9eb3374db9ddaeaa91c814705639731f3966b0399b041bb9022f47a20a079"
+    sha256 cellar: :any,                 big_sur:        "09e243ee08872ea442554ef705fbd55e0643da1124d9ea06757053ccaeca9792"
+    sha256 cellar: :any,                 catalina:       "cd30f382dddb31b7fd1d36555cbf65d8b1880bdec0394fb68769a2d57c334ef1"
+    sha256 cellar: :any_skip_relocation, x86_64_linux:   "df6092eefc2554ea52282bed1500254cd1adfc7f98c2c9a50362e38c36c4327b"
   end
 
   head do
@@ -29,16 +28,9 @@ class ProtobufAT219 < Formula
   end
 
   depends_on "python@3.10" => [:build, :test]
-  depends_on "python@3.11" => [:build, :test]
   depends_on "python@3.9" => [:build, :test]
 
   uses_from_macos "zlib"
-
-  def pythons
-    deps.map(&:to_formula)
-        .select { |f| f.name.match?(/^python@\d\.\d+$/) }
-        .map { |f| f.opt_libexec/"bin/python" }
-  end
 
   def install
     # Don't build in debug mode. See:
@@ -48,7 +40,8 @@ class ProtobufAT219 < Formula
     ENV.cxx11
 
     system "./autogen.sh" if build.head?
-    system "./configure", *std_configure_args, "--with-zlib"
+    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}", "--with-zlib"
     system "make"
     system "make", "check"
     system "make", "install"
@@ -61,8 +54,8 @@ class ProtobufAT219 < Formula
     ENV.append_to_cflags "-L#{lib}"
 
     cd "python" do
-      pythons.each do |python|
-        system python, *Language::Python.setup_install_args(prefix, python), "--cpp_implementation"
+      ["3.9", "3.10"].each do |xy|
+        system "python#{xy}", *Language::Python.setup_install_args(prefix, "python#{xy}"), "--cpp_implementation"
       end
     end
   end
@@ -81,8 +74,7 @@ class ProtobufAT219 < Formula
     (testpath/"test.proto").write testdata
     system bin/"protoc", "test.proto", "--cpp_out=."
 
-    pythons.each do |python|
-      system python, "-c", "import google.protobuf"
-    end
+    system Formula["python@3.9"].opt_bin/"python3.9", "-c", "import google.protobuf"
+    system Formula["python@3.10"].opt_bin/"python3.10", "-c", "import google.protobuf"
   end
 end
